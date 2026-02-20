@@ -28,7 +28,6 @@ protocol = "linux"
 files = [
     { type = "kernel",  search = "esp",  file = "\\boot\\vmlinuz-*", select = "latest" },
     { type = "initrd",  search = "esp",  file = "\\boot\\initrd.img", select = "latest" },
-    { type = "initrd",  search = "esp",  file = "\\boot\\amd-ucode.img" },
     { type = "cmdline", search = "inline", content = "console=tty0 root=/dev/sda2 ro quiet" },
 ]
 
@@ -38,8 +37,8 @@ name = "Canicula Network Boot"
 protocol = "canicula"
 files = [
     # type include: kernel, initrd and cmdline
-    { type = "kernel",  search = "https", file = "https://os.canicula.org/boot/kernel" },
-    { type = "cmdline", search = "https", file = "https://os.canicula.org/boot/cmdline" },
+    { type = "kernel",  search = "https", file = "https://os.canicula.org/boot/canicula/${arch}/kernel" },
+    { type = "cmdline", search = "https", file = "https://os.canicula.org/boot/canicula/${arch}/cmdline" },
 ]
 
 [[entry]]
@@ -47,7 +46,8 @@ name = "Linux Network Boot"
 protocol = "linux"
 identity = { hostname = "Cat", mac = "02:BB:CC:DD:EE:FF" }
 files = [
-    { type = "kernel",  search = "https", file = "https://os.canicula.org/boot/kernel" },
-    { type = "cmdline", search = "https", file = "https://os.canicula.org/boot/cmdline" },
-    { type = "initrd",  search = "https", file = "https://os.canicula.org/boot/initrd" },
+    { type = "kernel",  search = "https", file = "https://os.canicula.org/boot/linux/${arch}/kernel" },
+    { type = "initrd",  search = "https", file = "https://os.canicula.org/boot/linux/${arch}/initrd" },
+    { type = "initrd",  search = "esp",  file = "https://os.canicula.org/boot/linux/${arch}/initrd" },
+    { type = "cmdline", search = "https", file = "https://os.canicula.org/boot/linux/${arch}/cmdline" },
 ]
