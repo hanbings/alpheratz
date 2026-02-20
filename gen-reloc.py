@@ -83,13 +83,19 @@ def read_elf_reloc_offsets(elf_data, sections):
     return offsets
 
 
-def scan_sections_for_pointers(elf_data, sections):
-    """Scan .data and .rodata for 8-byte values that are image-internal pointers.
+def scan_data_for_pointers(elf_data, sections):
+    """Scan .data for 8-byte values that are image-internal pointers.
 
-    This catches GOT entries and vtable function pointers that LLD's
-    --emit-relocs does not cover (synthesized GOT slots, rodata vtables).
+    This catches GOT entries that LLD's --emit-relocs does not cover
+    (synthesized GOT slots).  We only scan .data — NOT .rodata, because
+    .rodata is full of string literals whose trailing bytes can
+    coincidentally look like image addresses (false positives that would
+    corrupt data when the UEFI loader applies base relocations).
     """
-    # Determine image address range: any section with a non-zero address
+    data_sec = sections.get(".data")
+    if not data_sec:
+        return set()
+
     image_lo = None
     image_hi = 0
     for sec in sections.values():
@@ -104,18 +110,14 @@ def scan_sections_for_pointers(elf_data, sections):
         return set()
 
     offsets = set()
-    for sec_name in (".data", ".rodata"):
-        sec = sections.get(sec_name)
-        if not sec:
-            continue
-        base = sec["offset"]
-        addr = sec["addr"]
-        size = sec["size"]
+    base = data_sec["offset"]
+    addr = data_sec["addr"]
+    size = data_sec["size"]
 
-        for i in range(0, size & ~7, 8):
-            val = struct.unpack_from("<Q", elf_data, base + i)[0]
-            if image_lo <= val < image_hi:
-                offsets.add(addr + i)
+    for i in range(0, size & ~7, 8):
+        val = struct.unpack_from("<Q", elf_data, base + i)[0]
+        if image_lo <= val < image_hi:
+            offsets.add(addr + i)
 
     return offsets
 
@@ -267,9 +269,10 @@ def main():
     # 1) Offsets from explicit R_*_64 relocations in .rela.data
     reloc_offsets = read_elf_reloc_offsets(elf_data, sections)
 
-    # 2) Additional offsets found by scanning .data/.rodata for image-internal
-    #    pointers (catches GOT entries and vtable slots that --emit-relocs misses)
-    scan_offsets = scan_sections_for_pointers(elf_data, sections)
+    # 2) Additional offsets found by scanning .data for image-internal pointers
+    #    (catches synthesized GOT entries that --emit-relocs misses).
+    #    We do NOT scan .rodata — string tails create false positives.
+    scan_offsets = scan_data_for_pointers(elf_data, sections)
 
     all_offsets = sorted(reloc_offsets | scan_offsets)
     extra = len(all_offsets) - len(reloc_offsets)

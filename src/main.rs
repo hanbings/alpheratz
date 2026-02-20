@@ -28,9 +28,6 @@ fn main() -> Status {
 }
 
 #[panic_handler]
-fn panic(info: &PanicInfo) -> ! {
-    uefi::system::with_stdout(|out| {
-        let _ = write!(out, "\r\n!!! PANIC !!!\r\n{}\r\n", info);
-    });
+fn panic(_info: &PanicInfo) -> ! {
     loop {}
 }
