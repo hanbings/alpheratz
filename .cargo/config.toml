@@ -1,0 +1,15 @@
+[target.riscv64gc-unknown-none-elf]
+rustflags = [
+    "-C", "link-arg=-T", "-C", "link-arg=elf-stage.ld",
+    "-C", "link-arg=--entry=efi_main",
+    "-C", "link-arg=--undefined=efi_main",
+    "-C", "relocation-model=pic",
+]
+
+[target.loongarch64-unknown-none]
+rustflags = [
+    "-C", "link-arg=-T", "-C", "link-arg=elf-stage.ld",
+    "-C", "link-arg=--entry=efi_main",
+    "-C", "link-arg=--undefined=efi_main",
+    "-C", "relocation-model=pic",
+]
