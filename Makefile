@@ -96,6 +96,7 @@ disk: efi
 	mmd -i $(DISK_IMG) ::EFI
 	mmd -i $(DISK_IMG) ::EFI/BOOT
 	mcopy -i $(DISK_IMG) $(EFI) ::EFI/BOOT/$(BOOT_EFI)
+	mcopy -i $(DISK_IMG) example.toml ::EFI/BOOT/bootloader.toml
 
 run: disk
 	cp $(VARS_TMPL) $(VARS)

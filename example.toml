@@ -1,5 +1,7 @@
 default = 0
 timeout = 3
+shutdown = true
+firmware = true
 backgrounds = ["\\EFI\\background\\example.jpeg"]
 drivers = ["\\EFI\\drivers"]
 
@@ -15,8 +17,10 @@ type = "dhcp"
 
 [[entry]]
 name = "Canicula Network Boot"
+# types: canicula and linux
 protocol = "canicula"
 files = [
+    # type include: kernel, initrd and cmdline
     { type = "kernel",  search = "https", file = "https://os.canicula.org/boot/kernel" },
     { type = "cmdline", search = "https", file = "https://os.canicula.org/boot/cmdline" },
 ]
