@@ -82,7 +82,10 @@ build:
 
 efi: build | $(OUT_DIR)
 ifneq ($(OBJCOPY),)
-	$(OBJCOPY) --subsystem efi-app -O $(PE_FORMAT) $(CARGO_BIN) $(EFI)
+	$(OBJCOPY) --remove-section=.rela.text --remove-section=.rela.data \
+		--remove-section=.rela.rodata --subsystem efi-app \
+		-O $(PE_FORMAT) $(CARGO_BIN) $(EFI)
+	python3 gen-reloc.py $(CARGO_BIN) $(EFI)
 else
 	cp $(CARGO_BIN) $(EFI)
 endif

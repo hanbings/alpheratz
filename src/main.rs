@@ -1,31 +1,36 @@
 #![no_std]
 #![no_main]
 
+mod config;
+mod menu;
+
+use core::fmt::Write;
 use core::panic::PanicInfo;
 use uefi::prelude::*;
 
-#[cfg(target_arch = "x86_64")]
-const HELLO: &uefi::CStr16 = cstr16!("Hello from x86_64 UEFI!\r\n");
-
-#[cfg(target_arch = "aarch64")]
-const HELLO: &uefi::CStr16 = cstr16!("Hello from AArch64 UEFI!\r\n");
-
-#[cfg(target_arch = "riscv64")]
-const HELLO: &uefi::CStr16 = cstr16!("Hello from RISC-V UEFI!\r\n");
-
-#[cfg(target_arch = "loongarch64")]
-const HELLO: &uefi::CStr16 = cstr16!("Hello from LoongArch64 UEFI!\r\n");
-
 #[entry]
 fn main() -> Status {
-    uefi::system::with_stdout(|stdout| {
-        let _ = stdout.output_string(HELLO);
+    let selected = menu::show();
+
+    uefi::system::with_stdout(|out| {
+        let _ = write!(
+            out,
+            "Selected: [{}] {}\r\n",
+            config::ENTRIES[selected].protocol,
+            config::ENTRIES[selected].name,
+        );
     });
+
+    // TODO: actually boot the selected entry
+    uefi::boot::stall(core::time::Duration::from_secs(3));
 
     Status::SUCCESS
 }
 
 #[panic_handler]
-fn panic(_info: &PanicInfo) -> ! {
+fn panic(info: &PanicInfo) -> ! {
+    uefi::system::with_stdout(|out| {
+        let _ = write!(out, "\r\n!!! PANIC !!!\r\n{}\r\n", info);
+    });
     loop {}
 }

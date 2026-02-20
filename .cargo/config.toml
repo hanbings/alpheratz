@@ -3,6 +3,7 @@ rustflags = [
     "-C", "link-arg=-T", "-C", "link-arg=elf-stage.ld",
     "-C", "link-arg=--entry=efi_main",
     "-C", "link-arg=--undefined=efi_main",
+    "-C", "link-arg=--emit-relocs",
     "-C", "relocation-model=pic",
 ]
 
@@ -11,5 +12,6 @@ rustflags = [
     "-C", "link-arg=-T", "-C", "link-arg=elf-stage.ld",
     "-C", "link-arg=--entry=efi_main",
     "-C", "link-arg=--undefined=efi_main",
+    "-C", "link-arg=--emit-relocs",
     "-C", "relocation-model=pic",
 ]

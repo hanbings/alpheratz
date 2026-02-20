@@ -17,18 +17,13 @@ SECTIONS
     .data ALIGN(0x1000) : {
         *(.data .data.*)
         *(.sdata .sdata.*)
+        *(.got .got.plt)
     }
 
     .bss ALIGN(0x1000) : {
         *(.bss .bss.*)
         *(.sbss .sbss.*)
         *(COMMON)
-    }
-
-    .reloc ALIGN(0x1000) : {
-        KEEP(*(.reloc))
-        LONG(0)
-        LONG(8)
     }
 
     /DISCARD/ : {
@@ -39,8 +34,6 @@ SECTIONS
         *(.eh_frame_hdr)
         *(.debug_*)
         *(.note*)
-        *(.got)
-        *(.got.plt)
         *(.plt)
     }
 }
