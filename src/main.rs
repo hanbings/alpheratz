@@ -3,6 +3,7 @@
 
 extern crate alloc;
 
+mod boot;
 mod config;
 mod download;
 mod fsutil;
@@ -61,26 +62,36 @@ fn main() -> Status {
         });
 
         let entry = &cfg.entry[selected];
-        match download::fetch_needed(&cfg, entry) {
-            Ok(downloaded) => {
-                if !downloaded.is_empty() {
-                    uefi::system::with_stdout(|out| {
-                        let _ = write!(out, "Downloaded {} file(s).\r\n", downloaded.len());
-                    });
-                }
-            }
+        let resolved = match download::resolve_all(&cfg, entry) {
+            Ok(r) => r,
             Err(e) => {
                 uefi::system::with_stdout(|out| {
-                    let _ = write!(out, "Download failed: {:?}\r\n", e.status());
+                    let _ = write!(out, "Failed to load files: {:?}\r\n", e.status());
                     let _ = write!(out, "Press any key to return to menu...\r\n");
                 });
                 wait_for_key();
                 continue;
             }
-        }
+        };
 
-        // TODO: actually boot the selected entry (Linux EFI Stub / Canicula OS)
-        uefi::boot::stall(core::time::Duration::from_secs(3));
+        let Some(kernel) = resolved.kernel.as_deref() else {
+            uefi::system::with_stdout(|out| {
+                let _ = write!(out, "No kernel found in entry.\r\n");
+                let _ = write!(out, "Press any key to return to menu...\r\n");
+            });
+            wait_for_key();
+            continue;
+        };
+
+        match entry.protocol {
+            config::Protocol::Linux | config::Protocol::Canicula => {
+                let _ = boot::boot_linux(
+                    kernel,
+                    resolved.initrd.as_deref(),
+                    resolved.cmdline.as_deref(),
+                );
+            }
+        }
 
         return Status::SUCCESS;
     }

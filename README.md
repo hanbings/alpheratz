@@ -1,8 +1,8 @@
 # Alpheratz
 
-Canicula OS 的 UEFI Bootloader 应用，支持加载 Linux EFI Stub 和 Canicula OS。
+Canicula OS 的 UEFI Bootloader 应用，用于加载 Linux EFI Stub 和 Canicula OS。
 
-支持 x86_64、AArch64、RISC-V 64、LoongArch64 四个架构。
+支持 x86_64、AArch64、RISC-V 64、LoongArch64 四个架构，支持基于 UEFI 的网络驱动在启动时下载内核本体、cmdline 等加载内核所需的文件。
 
 ## Build
 

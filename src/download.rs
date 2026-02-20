@@ -1,5 +1,3 @@
-#![allow(dead_code)]
-
 extern crate alloc;
 
 use alloc::string::String;
@@ -8,7 +6,8 @@ use core::fmt::Write;
 
 use uefi::proto::network::http::HttpHelper;
 
-use crate::config::{BootFile, Config, Entry, SearchMethod};
+use crate::config;
+use crate::config::{Config, Entry, SearchMethod};
 use crate::fsutil;
 use crate::net;
 
@@ -23,7 +22,7 @@ fn arch_name() -> &'static str {
     { "loongarch64" }
 }
 
-fn expand_vars(s: &str) -> String {
+pub fn expand_vars(s: &str) -> String {
     let mut out = String::from(s);
     if out.contains("${arch}") {
         out = out.replace("${arch}", arch_name());
@@ -31,84 +30,139 @@ fn expand_vars(s: &str) -> String {
     out
 }
 
-#[derive(Debug, Clone)]
-pub struct DownloadedFile {
-    pub url: String,
-    pub data: Vec<u8>,
+/// All resolved boot data for a single entry.
+pub struct ResolvedFiles {
+    pub kernel: Option<Vec<u8>>,
+    pub initrd: Option<Vec<u8>>,
+    pub cmdline: Option<String>,
 }
 
-fn https_files(entry: &Entry) -> Vec<&BootFile> {
-    entry
+/// Resolve every file listed in `entry` — reading from ESP, downloading via
+/// HTTPS, or extracting inline content — and return the combined result.
+pub fn resolve_all(cfg: &Config, entry: &Entry) -> uefi::Result<ResolvedFiles> {
+    let needs_https = entry
         .files
         .iter()
-        .filter(|f| matches!(f.search, SearchMethod::Https))
-        .collect()
-}
+        .any(|f| matches!(f.search, SearchMethod::Https));
+    let needs_esp = entry
+        .files
+        .iter()
+        .any(|f| matches!(f.search, SearchMethod::Esp));
 
-pub fn fetch_needed(cfg: &Config, entry: &Entry) -> uefi::Result<Vec<DownloadedFile>> {
-    let targets = https_files(entry);
-    if targets.is_empty() {
-        return Ok(Vec::new());
-    }
+    let mut esp_root = if needs_esp {
+        Some(fsutil::open_esp_root()?)
+    } else {
+        None
+    };
 
-    // Pre-load any additional EFI drivers (NIC / HTTP stack) before we start.
-    let _ = fsutil::load_drivers_from_config(cfg);
+    let mut http: Option<HttpHelper> = if needs_https {
+        let _ = fsutil::load_drivers_from_config(cfg);
+        let nic = net::select_nic_handle(cfg)?;
+        net::bring_up_ipv4(cfg, nic)?;
 
-    let nic = net::select_nic_handle(cfg)?;
-    net::bring_up_ipv4(cfg, nic)?;
-
-    uefi::system::with_stdout(|out| {
-        let _ = write!(out, "Creating HTTP client...\r\n");
-    });
-    let mut http = match HttpHelper::new(nic) {
-        Ok(h) => h,
-        Err(e) => {
+        uefi::system::with_stdout(|out| {
+            let _ = write!(out, "Creating HTTP client...\r\n");
+        });
+        let mut h = HttpHelper::new(nic).map_err(|e| {
             uefi::system::with_stdout(|out| {
                 let _ = write!(out, "  HttpHelper::new failed: {:?}\r\n", e.status());
             });
-            return Err(e);
-        }
+            e
+        })?;
+        h.configure().map_err(|e| {
+            uefi::system::with_stdout(|out| {
+                let _ = write!(out, "  http.configure failed: {:?}\r\n", e.status());
+            });
+            e
+        })?;
+        Some(h)
+    } else {
+        None
     };
-    if let Err(e) = http.configure() {
-        uefi::system::with_stdout(|out| {
-            let _ = write!(out, "  http.configure failed: {:?}\r\n", e.status());
-        });
-        return Err(e);
-    }
 
-    let mut out_files = Vec::new();
+    let mut kernel: Option<Vec<u8>> = None;
+    let mut initrd_parts: Vec<Vec<u8>> = Vec::new();
+    let mut cmdline: Option<String> = None;
 
-    for f in targets {
-        let Some(raw_url) = f.file.as_deref() else {
-            continue;
-        };
-        let url = expand_vars(raw_url);
-
-        uefi::system::with_stdout(|out| {
-            let _ = write!(out, "Downloading {}...\r\n", url);
-        });
-
-        http.request_get(&url)?;
-        let rsp = http.response_first(true)?;
-
-        let mut data = rsp.body;
-        loop {
-            let more = http.response_more()?;
-            if more.is_empty() {
-                break;
+    for f in &entry.files {
+        let data = match f.search {
+            SearchMethod::Esp => {
+                let path = f.file.as_deref().unwrap_or("");
+                if path.is_empty() {
+                    continue;
+                }
+                let path = expand_vars(path);
+                uefi::system::with_stdout(|out| {
+                    let _ = write!(out, "Reading {}...\r\n", path);
+                });
+                let root = esp_root.as_mut().unwrap();
+                let data = fsutil::read_file(root, &path)?;
+                uefi::system::with_stdout(|out| {
+                    let _ = write!(out, "  {} bytes\r\n", data.len());
+                });
+                data
             }
-            data.extend_from_slice(&more);
+            SearchMethod::Https => {
+                let raw_url = f.file.as_deref().unwrap_or("");
+                if raw_url.is_empty() {
+                    continue;
+                }
+                let url = expand_vars(raw_url);
+                uefi::system::with_stdout(|out| {
+                    let _ = write!(out, "Downloading {}...\r\n", url);
+                });
+                let h = http.as_mut().unwrap();
+                h.request_get(&url)?;
+                let rsp = h.response_first(true)?;
+                let mut data = rsp.body;
+                loop {
+                    let more = h.response_more()?;
+                    if more.is_empty() {
+                        break;
+                    }
+                    data.extend_from_slice(&more);
+                }
+                uefi::system::with_stdout(|out| {
+                    let _ = write!(out, "  {} bytes\r\n", data.len());
+                });
+                data
+            }
+            SearchMethod::Inline => {
+                if let Some(content) = &f.content {
+                    Vec::from(content.as_bytes())
+                } else {
+                    continue;
+                }
+            }
+        };
+
+        match f.file_type {
+            config::FileType::Kernel => kernel = Some(data),
+            config::FileType::Initrd => initrd_parts.push(data),
+            config::FileType::Cmdline => {
+                if let Ok(s) = core::str::from_utf8(&data) {
+                    cmdline = Some(String::from(s.trim_end_matches('\n')));
+                }
+            }
         }
-
-        uefi::system::with_stdout(|out| {
-            let _ = write!(out, "  {} bytes\r\n", data.len());
-        });
-
-        out_files.push(DownloadedFile {
-            url,
-            data,
-        });
     }
 
-    Ok(out_files)
+    let initrd = if initrd_parts.is_empty() {
+        None
+    } else if initrd_parts.len() == 1 {
+        Some(initrd_parts.remove(0))
+    } else {
+        let total: usize = initrd_parts.iter().map(|p| p.len()).sum();
+        let mut combined = Vec::with_capacity(total);
+        for p in initrd_parts {
+            combined.extend_from_slice(&p);
+        }
+        Some(combined)
+    };
+
+    Ok(ResolvedFiles {
+        kernel,
+        initrd,
+        cmdline,
+    })
 }
