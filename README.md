@@ -31,9 +31,9 @@ make -j$(nproc)
 通过 `ARCH` 变量选择架构，默认 `riscv64`：
 
 ```bash
-make efi                        # RISC-V 64（默认）
-make efi ARCH=x86_64
+make efi                        # x86_64（默认）
 make efi ARCH=aarch64
+make efi ARCH=riscv64
 make efi ARCH=loongarch64
 ```
 
@@ -55,9 +55,9 @@ make efi ARCH=riscv64 PROFILE=release
 ### QEMU 测试
 
 ```bash
-make run                        # RISC-V 64（默认）
-make run ARCH=x86_64
+make run                        # x86_64（默认）
 make run ARCH=aarch64
+make run ARCH=riscv64
 make run ARCH=loongarch64
 ```
 

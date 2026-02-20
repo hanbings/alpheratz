@@ -1,4 +1,4 @@
-ARCH    ?= riscv64
+ARCH    ?= x86_64
 PROFILE ?= debug
 
 ifeq ($(PROFILE),release)
