@@ -27,7 +27,7 @@ name = "Linux Local Boot"
 protocol = "linux"
 files = [
     { type = "kernel",  search = "esp",  file = "\\boot\\vmlinuz-*", select = "latest" },
-    { type = "initrd",  search = "esp",  file = "\\boot\\initrd.img-*", select = "latest" },
+    { type = "initrd",  search = "esp",  file = "\\boot\\initrd.img", select = "latest" },
     { type = "initrd",  search = "esp",  file = "\\boot\\amd-ucode.img" },
     { type = "cmdline", search = "inline", content = "console=tty0 root=/dev/sda2 ro quiet" },
 ]
