@@ -12,6 +12,25 @@ use crate::config::{BootFile, Config, Entry, SearchMethod};
 use crate::fsutil;
 use crate::net;
 
+fn arch_name() -> &'static str {
+    #[cfg(target_arch = "x86_64")]
+    { "x86_64" }
+    #[cfg(target_arch = "aarch64")]
+    { "aarch64" }
+    #[cfg(target_arch = "riscv64")]
+    { "riscv64" }
+    #[cfg(target_arch = "loongarch64")]
+    { "loongarch64" }
+}
+
+fn expand_vars(s: &str) -> String {
+    let mut out = String::from(s);
+    if out.contains("${arch}") {
+        out = out.replace("${arch}", arch_name());
+    }
+    out
+}
+
 #[derive(Debug, Clone)]
 pub struct DownloadedFile {
     pub url: String,
@@ -60,15 +79,16 @@ pub fn fetch_needed(cfg: &Config, entry: &Entry) -> uefi::Result<Vec<DownloadedF
     let mut out_files = Vec::new();
 
     for f in targets {
-        let Some(url) = f.file.as_deref() else {
+        let Some(raw_url) = f.file.as_deref() else {
             continue;
         };
+        let url = expand_vars(raw_url);
 
         uefi::system::with_stdout(|out| {
             let _ = write!(out, "Downloading {}...\r\n", url);
         });
 
-        http.request_get(url)?;
+        http.request_get(&url)?;
         let rsp = http.response_first(true)?;
 
         let mut data = rsp.body;
@@ -85,7 +105,7 @@ pub fn fetch_needed(cfg: &Config, entry: &Entry) -> uefi::Result<Vec<DownloadedF
         });
 
         out_files.push(DownloadedFile {
-            url: String::from(url),
+            url,
             data,
         });
     }
