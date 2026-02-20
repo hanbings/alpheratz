@@ -4,7 +4,10 @@
 extern crate alloc;
 
 mod config;
+mod download;
+mod fsutil;
 mod menu;
+mod net;
 
 use alloc::vec;
 use core::fmt::Write;
@@ -45,20 +48,51 @@ fn load_config() -> config::Config {
 #[entry]
 fn main() -> Status {
     let cfg = load_config();
-    let selected = menu::show(&cfg);
 
-    uefi::system::with_stdout(|out| {
-        let _ = write!(
-            out,
-            "Selected: [{}] {}\r\n",
-            cfg.entry[selected].protocol, cfg.entry[selected].name,
-        );
-    });
+    loop {
+        let selected = menu::show(&cfg);
 
-    // TODO: actually boot the selected entry
-    uefi::boot::stall(core::time::Duration::from_secs(3));
+        uefi::system::with_stdout(|out| {
+            let _ = write!(
+                out,
+                "Selected: [{}] {}\r\n",
+                cfg.entry[selected].protocol, cfg.entry[selected].name,
+            );
+        });
 
-    Status::SUCCESS
+        let entry = &cfg.entry[selected];
+        match download::fetch_needed(&cfg, entry) {
+            Ok(downloaded) => {
+                if !downloaded.is_empty() {
+                    uefi::system::with_stdout(|out| {
+                        let _ = write!(out, "Downloaded {} file(s).\r\n", downloaded.len());
+                    });
+                }
+            }
+            Err(e) => {
+                uefi::system::with_stdout(|out| {
+                    let _ = write!(out, "Download failed: {:?}\r\n", e.status());
+                    let _ = write!(out, "Press any key to return to menu...\r\n");
+                });
+                wait_for_key();
+                continue;
+            }
+        }
+
+        // TODO: actually boot the selected entry (Linux EFI Stub / Canicula OS)
+        uefi::boot::stall(core::time::Duration::from_secs(3));
+
+        return Status::SUCCESS;
+    }
+}
+
+fn wait_for_key() {
+    loop {
+        uefi::boot::stall(core::time::Duration::from_millis(100));
+        if let Ok(Some(_)) = uefi::system::with_stdin(|stdin| stdin.read_key()) {
+            return;
+        }
+    }
 }
 
 #[panic_handler]

@@ -24,6 +24,7 @@ ifeq ($(ARCH),x86_64)
   QEMU_MACHINE := -machine q35
   QEMU_MEM     := 256M
   QEMU_DRIVE   := -drive file=$(DISK_IMG),format=raw
+  QEMU_NET     := -device e1000,netdev=net0 -netdev user,id=net0
   FIRMWARE     := /usr/share/OVMF/OVMF_CODE_4M.fd
   VARS_TMPL    := /usr/share/OVMF/OVMF_VARS_4M.fd
 
@@ -35,6 +36,7 @@ else ifeq ($(ARCH),aarch64)
   QEMU_MACHINE := -machine virt -cpu cortex-a72
   QEMU_MEM     := 256M
   QEMU_DRIVE   := -drive file=$(DISK_IMG),format=raw,if=virtio
+  QEMU_NET     := -device virtio-net-device,netdev=net0 -netdev user,id=net0
   FIRMWARE     := /usr/share/AAVMF/AAVMF_CODE.fd
   VARS_TMPL    := /usr/share/AAVMF/AAVMF_VARS.fd
 
@@ -48,6 +50,7 @@ else ifeq ($(ARCH),riscv64)
   QEMU_MACHINE := -machine virt
   QEMU_MEM     := 256M
   QEMU_DRIVE   := -drive file=$(DISK_IMG),format=raw,if=virtio
+  QEMU_NET     := -device virtio-net-device,netdev=net0 -netdev user,id=net0
   FIRMWARE     := /usr/share/qemu-efi-riscv64/RISCV_VIRT_CODE.fd
   VARS_TMPL    := /usr/share/qemu-efi-riscv64/RISCV_VIRT_VARS.fd
 
@@ -61,6 +64,7 @@ else ifeq ($(ARCH),loongarch64)
   QEMU_MACHINE := -machine virt
   QEMU_MEM     := 2G
   QEMU_DRIVE   := -drive file=$(DISK_IMG),format=raw,if=virtio
+  QEMU_NET     := -device virtio-net-pci,netdev=net0 -netdev user,id=net0
   FIRMWARE     := /usr/share/qemu-efi-loongarch64/QEMU_EFI.fd
   VARS_TMPL    := /usr/share/qemu-efi-loongarch64/QEMU_VARS.fd
 
@@ -106,7 +110,8 @@ run: disk
 		-nographic \
 		-drive if=pflash,format=raw,file=$(FIRMWARE),readonly=on \
 		-drive if=pflash,format=raw,file=$(VARS) \
-		$(QEMU_DRIVE)
+		$(QEMU_DRIVE) \
+		$(QEMU_NET)
 
 clean:
 	cargo clean
