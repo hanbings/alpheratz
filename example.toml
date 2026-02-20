@@ -16,13 +16,10 @@ bind = "A9:4C:42:5B:1A:B6"
 type = "dhcp"
 
 [[entry]]
-name = "Canicula Network Boot"
-# types: canicula and linux
+name = "Canicula Local Boot"
 protocol = "canicula"
 files = [
-    # type include: kernel, initrd and cmdline
-    { type = "kernel",  search = "https", file = "https://os.canicula.org/boot/kernel" },
-    { type = "cmdline", search = "https", file = "https://os.canicula.org/boot/cmdline" },
+    { type = "kernel",  search = "esp",  file = "\\boot\\canicula-kernel", select = "latest" },
 ]
 
 [[entry]]
@@ -33,6 +30,16 @@ files = [
     { type = "initrd",  search = "esp",  file = "\\boot\\initrd.img-*", select = "latest" },
     { type = "initrd",  search = "esp",  file = "\\boot\\amd-ucode.img" },
     { type = "cmdline", search = "inline", content = "console=tty0 root=/dev/sda2 ro quiet" },
+]
+
+[[entry]]
+name = "Canicula Network Boot"
+# types: canicula and linux
+protocol = "canicula"
+files = [
+    # type include: kernel, initrd and cmdline
+    { type = "kernel",  search = "https", file = "https://os.canicula.org/boot/kernel" },
+    { type = "cmdline", search = "https", file = "https://os.canicula.org/boot/cmdline" },
 ]
 
 [[entry]]
