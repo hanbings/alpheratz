@@ -24,9 +24,9 @@ ifeq ($(ARCH),x86_64)
   QEMU_MACHINE := -machine q35
   QEMU_MEM     := 256M
   QEMU_DRIVE   := -drive file=$(DISK_IMG),format=raw
-  QEMU_NET     := -device e1000,netdev=net0 -netdev user,id=net0
-  FIRMWARE     := /usr/share/OVMF/OVMF_CODE_4M.fd
-  VARS_TMPL    := /usr/share/OVMF/OVMF_VARS_4M.fd
+  QEMU_NET     := -device e1000,netdev=net0 -netdev user,id=net0 -device virtio-rng-pci
+  FIRMWARE     := fw/OVMF_X64_CODE.fd
+  VARS_TMPL    := fw/OVMF_X64_VARS.fd
 
 else ifeq ($(ARCH),aarch64)
   RUST_TARGET  := aarch64-unknown-uefi
@@ -36,9 +36,9 @@ else ifeq ($(ARCH),aarch64)
   QEMU_MACHINE := -machine virt -cpu cortex-a72
   QEMU_MEM     := 256M
   QEMU_DRIVE   := -drive file=$(DISK_IMG),format=raw,if=virtio
-  QEMU_NET     := -device virtio-net-device,netdev=net0 -netdev user,id=net0
-  FIRMWARE     := /usr/share/AAVMF/AAVMF_CODE.fd
-  VARS_TMPL    := /usr/share/AAVMF/AAVMF_VARS.fd
+  QEMU_NET     := -device virtio-net-device,netdev=net0 -netdev user,id=net0 -device virtio-rng-device
+  FIRMWARE     := fw/QEMU_EFI_AA64.fd
+  VARS_TMPL    := fw/QEMU_VARS_AA64.fd
 
 else ifeq ($(ARCH),riscv64)
   RUST_TARGET  := riscv64gc-unknown-none-elf
@@ -50,9 +50,9 @@ else ifeq ($(ARCH),riscv64)
   QEMU_MACHINE := -machine virt
   QEMU_MEM     := 256M
   QEMU_DRIVE   := -drive file=$(DISK_IMG),format=raw,if=virtio
-  QEMU_NET     := -device virtio-net-device,netdev=net0 -netdev user,id=net0
-  FIRMWARE     := /usr/share/qemu-efi-riscv64/RISCV_VIRT_CODE.fd
-  VARS_TMPL    := /usr/share/qemu-efi-riscv64/RISCV_VIRT_VARS.fd
+  QEMU_NET     := -device virtio-net-device,netdev=net0 -netdev user,id=net0 -device virtio-rng-device
+  FIRMWARE     := fw/RISCV_VIRT_CODE.fd
+  VARS_TMPL    := fw/RISCV_VIRT_VARS.fd
 
 else ifeq ($(ARCH),loongarch64)
   RUST_TARGET  := loongarch64-unknown-none
@@ -64,9 +64,9 @@ else ifeq ($(ARCH),loongarch64)
   QEMU_MACHINE := -machine virt
   QEMU_MEM     := 2G
   QEMU_DRIVE   := -drive file=$(DISK_IMG),format=raw,if=virtio
-  QEMU_NET     := -device virtio-net-pci,netdev=net0 -netdev user,id=net0
-  FIRMWARE     := /usr/share/qemu-efi-loongarch64/QEMU_EFI.fd
-  VARS_TMPL    := /usr/share/qemu-efi-loongarch64/QEMU_VARS.fd
+  QEMU_NET     := -device virtio-net-pci,netdev=net0 -netdev user,id=net0 -device virtio-rng-pci
+  FIRMWARE     := fw/QEMU_EFI_LA64.fd
+  VARS_TMPL    := fw/QEMU_VARS_LA64.fd
 
 else
   $(error Unsupported ARCH=$(ARCH). Use x86_64, aarch64, riscv64, or loongarch64)

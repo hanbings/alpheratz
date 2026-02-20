@@ -6,6 +6,8 @@ Canicula OS 的 UEFI Bootloader 应用，支持加载 Linux EFI Stub 和 Canicul
 
 ## Build
 
+> 使用 Debian 源的 OVMF 固件未携带 IPv4 网络栈，需要自行编译 edk2
+
 ### 依赖
 
 Rust nightly 工具链、GNU binutils（RISC-V / LoongArch）、UEFI 固件、mtools、dosfstools。
