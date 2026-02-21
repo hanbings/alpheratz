@@ -1,4 +1,6 @@
-# Alpheratz
+![Canicula Aplheratz](https://picture.hanbings.com/2026/02/21/70fa8c368b2c12e71e2f195c673c38e4ae77db8c754c10c756403795b8d39c3b.png)
+
+<h1 align="center">🌟 Alpheratz</h1>
 
 Canicula OS 的 UEFI Bootloader 应用，用于加载 Linux EFI Stub 和 Canicula OS。
 
