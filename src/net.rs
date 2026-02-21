@@ -10,6 +10,7 @@ use uefi::boot::{self, OpenProtocolAttributes, OpenProtocolParams};
 use uefi::prelude::*;
 use uefi::proto::network::ip4config2::Ip4Config2;
 use uefi::proto::network::snp::SimpleNetwork;
+use uefi_raw::protocol::network::ip4_config2::Ip4Config2DataType;
 
 use crate::config::{Config, NetworkType};
 
@@ -112,12 +113,8 @@ fn open_ip4config2(preferred: Handle) -> uefi::Result<boot::ScopedProtocol<Ip4Co
         return Ok(p);
     }
 
-    // Ip4Config2 may live on a different handle (e.g. MNP child).
     let handles = boot::locate_handle_buffer(boot::SearchType::ByProtocol(&Ip4Config2::GUID))?;
-
-    uefi::system::with_stdout(|out| {
-        let _ = write!(out, "  Ip4Config2 handles found: {}\r\n", handles.len());
-    });
+    uefi::println!("  Ip4Config2 handles found: {}", handles.len());
 
     for &h in handles.iter() {
         if let Ok(p) = Ip4Config2::new(h) {
@@ -136,25 +133,18 @@ fn count_protocol_handles(guid: &uefi::Guid) -> usize {
 
 pub fn bring_up_ipv4(cfg: &Config, nic: Handle) -> uefi::Result<()> {
     if let Ok(snp) = unsafe { open_snp_readonly(nic) } {
-        let mac = snp_mac6(&snp);
-        uefi::system::with_stdout(|out| {
-            let _ = writeln!(out, "NIC: {}", mac_to_string(mac));
-        });
+        uefi::println!("NIC: {}", mac_to_string(snp_mac6(&snp)));
     }
 
     for pass in 0..6u32 {
         let _ = boot::connect_controller(nic, None, None, true);
         connect_all_controllers();
 
-        let ip4_n = count_protocol_handles(&Ip4Config2::GUID);
-        if ip4_n > 0 {
+        if count_protocol_handles(&Ip4Config2::GUID) > 0 {
             break;
         }
-
         if pass == 5 {
-            uefi::system::with_stdout(|out| {
-                let _ = write!(out, "  Network stack failed to initialize\r\n");
-            });
+            uefi::println!("  Network stack failed to initialize");
         }
     }
 
@@ -166,66 +156,33 @@ pub fn bring_up_ipv4(cfg: &Config, nic: Handle) -> uefi::Result<()> {
 
     match want_dhcp {
         NetworkType::Dhcp => {
-            uefi::system::with_stdout(|out| {
-                let _ = write!(out, "Waiting for DHCP...\r\n");
-            });
-            let mut ip4 = match open_ip4config2(nic) {
-                Ok(v) => v,
-                Err(e) => {
-                    uefi::system::with_stdout(|out| {
-                        let _ = write!(
-                            out,
-                            "  Ip4Config2 not found on any handle: {:?}\r\n",
-                            e.status()
-                        );
-                    });
-                    return Err(e);
-                }
-            };
-            if let Err(e) = ip4.ifup() {
-                uefi::system::with_stdout(|out| {
-                    let _ = write!(out, "  ifup failed: {:?}\r\n", e.status());
-                });
-                return Err(e);
-            }
+            uefi::println!("Waiting for DHCP...");
+
+            let mut ip4 = open_ip4config2(nic).map_err(|e| {
+                uefi::println!("  Ip4Config2 not found on any handle: {:?}", e.status());
+                e
+            })?;
+
+            ip4.ifup().map_err(|e| {
+                uefi::println!("  ifup failed: {:?}", e.status());
+                e
+            })?;
+
             if let Ok(info) = ip4.get_interface_info() {
-                uefi::system::with_stdout(|out| {
-                    let _ = write!(
-                        out,
-                        "  IP:      {}\r\n  Netmask: {}\r\n",
-                        info.station_addr, info.subnet_mask,
-                    );
-                });
+                uefi::println!("  IP:      {}", info.station_addr);
+                uefi::println!("  Netmask: {}", info.subnet_mask);
             }
-            if let Ok(gw_data) =
-                ip4.get_data(uefi_raw::protocol::network::ip4_config2::Ip4Config2DataType::GATEWAY)
-            {
-                if gw_data.len() >= 4 {
-                    uefi::system::with_stdout(|out| {
-                        let _ = write!(
-                            out,
-                            "  Gateway: {}.{}.{}.{}\r\n",
-                            gw_data[0], gw_data[1], gw_data[2], gw_data[3],
-                        );
-                    });
+            if let Ok(gw) = ip4.get_data(Ip4Config2DataType::GATEWAY) {
+                if gw.len() >= 4 {
+                    uefi::println!("  Gateway: {}.{}.{}.{}", gw[0], gw[1], gw[2], gw[3]);
                 }
             }
-            if let Ok(dns_data) = ip4
-                .get_data(uefi_raw::protocol::network::ip4_config2::Ip4Config2DataType::DNS_SERVER)
-            {
-                for chunk in dns_data.chunks_exact(4) {
-                    uefi::system::with_stdout(|out| {
-                        let _ = write!(
-                            out,
-                            "  DNS:     {}.{}.{}.{}\r\n",
-                            chunk[0], chunk[1], chunk[2], chunk[3],
-                        );
-                    });
+            if let Ok(dns) = ip4.get_data(Ip4Config2DataType::DNS_SERVER) {
+                for c in dns.chunks_exact(4) {
+                    uefi::println!("  DNS:     {}.{}.{}.{}", c[0], c[1], c[2], c[3]);
                 }
             }
-            uefi::system::with_stdout(|out| {
-                let _ = write!(out, "IPv4 ready.\r\n");
-            });
+            uefi::println!("IPv4 ready.");
         }
     }
     Ok(())

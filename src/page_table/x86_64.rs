@@ -1,7 +1,7 @@
 use uefi::boot::{AllocateType, MemoryType};
 
 use crate::PAGE_SIZE;
-use crate::serial_str;
+use crate::serial::serial_str;
 
 const PAGE_PRESENT: u64 = 1 << 0;
 const PAGE_WRITABLE: u64 = 1 << 1;

@@ -2,7 +2,6 @@ extern crate alloc;
 
 use alloc::string::String;
 use alloc::vec::Vec;
-use core::fmt::Write;
 
 use uefi::proto::network::http::HttpHelper;
 
@@ -40,14 +39,8 @@ pub struct ResolvedFiles {
 /// Resolve every file listed in `entry` — reading from ESP, downloading via
 /// HTTPS, or extracting inline content — and return the combined result.
 pub fn resolve_all(cfg: &Config, entry: &Entry) -> uefi::Result<ResolvedFiles> {
-    let needs_https = entry
-        .files
-        .iter()
-        .any(|f| matches!(f.search, SearchMethod::Https));
-    let needs_esp = entry
-        .files
-        .iter()
-        .any(|f| matches!(f.search, SearchMethod::Esp));
+    let needs_https = entry.files.iter().any(|f| matches!(f.search, SearchMethod::Https));
+    let needs_esp = entry.files.iter().any(|f| matches!(f.search, SearchMethod::Esp));
 
     let mut esp_root = if needs_esp {
         Some(fsutil::open_esp_root()?)
@@ -60,19 +53,13 @@ pub fn resolve_all(cfg: &Config, entry: &Entry) -> uefi::Result<ResolvedFiles> {
         let nic = net::select_nic_handle(cfg)?;
         net::bring_up_ipv4(cfg, nic)?;
 
-        uefi::system::with_stdout(|out| {
-            let _ = write!(out, "Creating HTTP client...\r\n");
-        });
+        uefi::println!("Creating HTTP client...");
         let mut h = HttpHelper::new(nic).map_err(|e| {
-            uefi::system::with_stdout(|out| {
-                let _ = write!(out, "  HttpHelper::new failed: {:?}\r\n", e.status());
-            });
+            uefi::println!("  HttpHelper::new failed: {:?}", e.status());
             e
         })?;
         h.configure().map_err(|e| {
-            uefi::system::with_stdout(|out| {
-                let _ = write!(out, "  http.configure failed: {:?}\r\n", e.status());
-            });
+            uefi::println!("  http.configure failed: {:?}", e.status());
             e
         })?;
         Some(h)
@@ -92,14 +79,10 @@ pub fn resolve_all(cfg: &Config, entry: &Entry) -> uefi::Result<ResolvedFiles> {
                     continue;
                 }
                 let path = expand_vars(path);
-                uefi::system::with_stdout(|out| {
-                    let _ = write!(out, "Reading {}...\r\n", path);
-                });
+                uefi::println!("Reading {}...", path);
                 let root = esp_root.as_mut().unwrap();
                 let data = fsutil::read_file(root, &path)?;
-                uefi::system::with_stdout(|out| {
-                    let _ = write!(out, "  {} bytes\r\n", data.len());
-                });
+                uefi::println!("  {} bytes", data.len());
                 data
             }
             SearchMethod::Https => {
@@ -108,9 +91,7 @@ pub fn resolve_all(cfg: &Config, entry: &Entry) -> uefi::Result<ResolvedFiles> {
                     continue;
                 }
                 let url = expand_vars(raw_url);
-                uefi::system::with_stdout(|out| {
-                    let _ = write!(out, "Downloading {}...\r\n", url);
-                });
+                uefi::println!("Downloading {}...", url);
                 let h = http.as_mut().unwrap();
                 h.request_get(&url)?;
                 let rsp = h.response_first(true)?;
@@ -122,9 +103,7 @@ pub fn resolve_all(cfg: &Config, entry: &Entry) -> uefi::Result<ResolvedFiles> {
                     }
                     data.extend_from_slice(&more);
                 }
-                uefi::system::with_stdout(|out| {
-                    let _ = write!(out, "  {} bytes\r\n", data.len());
-                });
+                uefi::println!("  {} bytes", data.len());
                 data
             }
             SearchMethod::Inline => {

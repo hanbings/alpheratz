@@ -1,7 +1,7 @@
 use uefi::boot::{AllocateType, MemoryType};
 
 use crate::PAGE_SIZE;
-use crate::serial_str;
+use crate::serial::serial_str;
 
 // Sv39 PTE flags
 
