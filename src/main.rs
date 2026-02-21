@@ -124,12 +124,15 @@ fn main() -> Status {
         };
 
         match entry.protocol {
-            config::Protocol::Linux | config::Protocol::Canicula => {
+            config::Protocol::Linux => {
                 let _ = boot::boot_linux(
                     kernel,
                     resolved.initrd.as_deref(),
                     resolved.cmdline.as_deref(),
                 );
+            }
+            config::Protocol::Canicula => {
+                let _ = boot::boot_canicula(kernel, resolved.cmdline.as_deref());
             }
         }
 

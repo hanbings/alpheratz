@@ -4,7 +4,10 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+canicula-common = { git = "https://github.com/hanbings/canicula.git", default-features = false }
+log = "0.4"
 serde = { version = "1", default-features = false, features = ["derive", "alloc"] }
 toml = { version = "1.0", default-features = false, features = ["parse", "serde"] }
-uefi = { version = "0.36.1", features = ["alloc", "global_allocator"] }
+uefi = { version = "0.36.1", features = ["alloc", "global_allocator", "logger"] }
 uefi-raw = "0.13.0"
+xmas-elf = "0.9"

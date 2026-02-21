@@ -7,9 +7,11 @@ const PAGE_PRESENT: u64 = 1 << 0;
 const PAGE_WRITABLE: u64 = 1 << 1;
 const PAGE_HUGE: u64 = 1 << 7;
 
-/// PML4 entry index for kernel virtual address mapping.
-/// Index 510 → virtual base 0xFFFF_FF00_0000_0000.
-pub const KERNEL_PML4_INDEX: usize = 510;
+/// Default PML4 entry index for kernel virtual address mapping.
+///
+/// Note: the actual kernel PML4 index can be chosen at runtime (e.g. derived
+/// from an ELF kernel's virtual base), and is stored in [`PageTableConfig`].
+pub const DEFAULT_KERNEL_PML4_INDEX: usize = 510;
 
 /// PML4 entry index for the physical memory direct mapping.
 /// Index 256 → virtual base 0xFFFF_8000_0000_0000.
@@ -33,6 +35,7 @@ pub struct PageTableConfig {
     kernel_phys: u64,
     kernel_4k_pages: usize,
     pt_count: usize,
+    kernel_pml4_index: usize,
 }
 
 impl PageTableConfig {
@@ -48,7 +51,11 @@ impl PageTableConfig {
 ///
 /// # Safety
 /// Caller must ensure UEFI boot services are still available.
-pub unsafe fn allocate_page_tables(kernel_phys: u64, kernel_size: usize) -> PageTableConfig {
+pub unsafe fn allocate_page_tables(
+    kernel_phys: u64,
+    kernel_size: usize,
+    kernel_pml4_index: usize,
+) -> PageTableConfig {
     let kernel_4k_pages = (kernel_size + PAGE_SIZE - 1) / PAGE_SIZE;
     let pt_count = (kernel_4k_pages + 511) / 512;
 
@@ -100,6 +107,7 @@ pub unsafe fn allocate_page_tables(kernel_phys: u64, kernel_size: usize) -> Page
         kernel_phys,
         kernel_4k_pages,
         pt_count,
+        kernel_pml4_index,
     }
 }
 
@@ -142,7 +150,7 @@ pub unsafe fn init_page_tables(cfg: &PageTableConfig) -> u64 {
         *pml4.add(0) = cfg.pdpt_low | PAGE_PRESENT | PAGE_WRITABLE;
 
         // PML4[KERNEL] → PDPT_KERNEL
-        *pml4.add(KERNEL_PML4_INDEX) = cfg.pdpt_kernel | PAGE_PRESENT | PAGE_WRITABLE;
+        *pml4.add(cfg.kernel_pml4_index) = cfg.pdpt_kernel | PAGE_PRESENT | PAGE_WRITABLE;
 
         // PML4[PHYS_MAP] → PDPT_PHYS_MAP
         *pml4.add(PHYS_MAP_PML4_INDEX) = cfg.pdpt_phys_map | PAGE_PRESENT | PAGE_WRITABLE;

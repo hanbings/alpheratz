@@ -19,7 +19,7 @@ type = "dhcp"
 name = "Canicula Local Boot"
 protocol = "canicula"
 files = [
-    { type = "kernel",  search = "esp",  file = "\\boot\\canicula-kernel", select = "latest" },
+    { type = "kernel",  search = "esp",  file = "\\EFI\\BOOT\\canicula-kernel", select = "latest" },
 ]
 
 [[entry]]
@@ -48,6 +48,5 @@ identity = { hostname = "Cat", mac = "02:BB:CC:DD:EE:FF" }
 files = [
     { type = "kernel",  search = "https", file = "https://os.canicula.org/boot/linux/${arch}/kernel" },
     { type = "initrd",  search = "https", file = "https://os.canicula.org/boot/linux/${arch}/initrd" },
-    { type = "initrd",  search = "esp",  file = "https://os.canicula.org/boot/linux/${arch}/initrd" },
     { type = "cmdline", search = "https", file = "https://os.canicula.org/boot/linux/${arch}/cmdline" },
 ]
